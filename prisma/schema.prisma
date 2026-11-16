@@ -7,8 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Placeholder so Stage 1 has a migratable schema.
-/// Domain models (products, stock ledger, etc.) come in later stages.
+enum Role {
+  Admin
+  Manager
+  Staff
+  Viewer
+}
+
 model SchemaMeta {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -17,4 +22,32 @@ model SchemaMeta {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("schema_meta")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String         @map("password_hash")
+  fullName     String         @map("full_name")
+  role         Role
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  tokenHash         String    @unique @map("token_hash")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  replacedByTokenId String?   @map("replaced_by_token_id")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
