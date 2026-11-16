@@ -81,6 +81,19 @@ Authorization uses DB tables `permissions` + `role_permissions` (seeded). Guards
 
 Location codes are unique per warehouse. Deactivating a warehouse is blocked while it still has active locations.
 
+## Master data — Catalog (Stage 2.4)
+
+| Method | Path | Permission | Notes |
+|--------|------|------------|-------|
+| GET/POST | `/categories` | `categories:read` / `write` | list / create |
+| GET/PATCH | `/categories/:id` | `categories:read` / `write` | detail / update; deactivate blocked if active products |
+| GET/POST | `/suppliers` | `suppliers:read` / `write` | list / create |
+| GET/PATCH | `/suppliers/:id` | `suppliers:read` / `write` | detail / update / soft deactivate |
+| GET/POST | `/products` | `products:read` / `write` | list (`categoryId`, `search` on sku/name/barcode) / create |
+| GET/PATCH | `/products/:id` | `products:read` / `write` | detail / update; blank barcode → null; `reorderPoint` as decimal string |
+
+SKU and codes are trimmed/uppercased. Product create/activate requires an **active** category.
+
 ## Scripts
 
 | Script | Description |

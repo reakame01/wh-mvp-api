@@ -22,3 +22,24 @@ export function normalizeOptionalParentId(
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
 }
+
+/** Optional string field: undefined omitted, blank → null. */
+export function normalizeOptionalString(
+  value: string | null | undefined,
+): string | null | undefined {
+  return normalizeOptionalParentId(value);
+}
+
+/** Non-negative decimal as string (no float). */
+export function requireNonNegativeDecimal(
+  value: string | number,
+  field = 'reorderPoint',
+): string {
+  const raw = String(value).trim();
+  if (!/^\d+(\.\d+)?$/.test(raw)) {
+    throw new InvalidMasterDataInputError(
+      `${field} must be a non-negative decimal`,
+    );
+  }
+  return raw;
+}

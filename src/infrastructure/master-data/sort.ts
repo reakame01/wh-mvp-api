@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-const ALLOWED = new Set(['createdAt', 'name', 'code']);
+const ALLOWED = new Set(['createdAt', 'name', 'code', 'sku']);
 
 export type SortOrder = Record<string, Prisma.SortOrder>[];
 
