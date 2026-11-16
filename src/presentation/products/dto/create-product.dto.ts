@@ -1,4 +1,3 @@
-import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateProductDto {
@@ -22,16 +21,7 @@ export class CreateProductDto {
   @MinLength(1)
   unit!: string;
 
-  /** Coerce number→string; domain validates non-negative decimal. */
-  @Transform(({ value }: { value: unknown }) => {
-    if (value === undefined || value === null) {
-      return value;
-    }
-    if (typeof value === 'string' || typeof value === 'number') {
-      return String(value);
-    }
-    return value;
-  })
+  /** Send as JSON string (not number) to avoid float precision loss. */
   @IsString()
   @IsNotEmpty()
   reorderPoint!: string;

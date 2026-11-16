@@ -1,4 +1,3 @@
-import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsNotEmpty,
@@ -27,16 +26,8 @@ export class UpdateProductDto {
   @MinLength(1)
   unit?: string;
 
+  /** Send as JSON string (not number) to avoid float precision loss. */
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => {
-    if (value === undefined || value === null) {
-      return value;
-    }
-    if (typeof value === 'string' || typeof value === 'number') {
-      return String(value);
-    }
-    return value;
-  })
   @IsString()
   @IsNotEmpty()
   reorderPoint?: string;

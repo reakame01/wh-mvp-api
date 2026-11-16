@@ -8,7 +8,7 @@ import {
 } from '../../application/master-data/ports/supplier.repository.port';
 import { Supplier } from '../../domain/master-data/supplier';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseSort } from './sort';
+import { CODE_SORT_FIELDS, parseSort } from './sort';
 
 @Injectable()
 export class PrismaSupplierRepository implements SupplierRepositoryPort {
@@ -35,7 +35,7 @@ export class PrismaSupplierRepository implements SupplierRepositoryPort {
         { name: { contains: query.search, mode: 'insensitive' } },
       ];
     }
-    const orderBy = parseSort(query.sort);
+    const orderBy = parseSort(query.sort, CODE_SORT_FIELDS);
     const [items, total] = await this.prisma.$transaction([
       this.prisma.supplier.findMany({
         where,

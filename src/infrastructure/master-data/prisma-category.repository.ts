@@ -9,7 +9,7 @@ import {
 } from '../../application/master-data/ports/category.repository.port';
 import { Category } from '../../domain/master-data/category';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseSort } from './sort';
+import { CODE_SORT_FIELDS, parseSort } from './sort';
 
 @Injectable()
 export class PrismaCategoryRepository implements CategoryRepositoryPort {
@@ -36,7 +36,7 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
         { name: { contains: query.search, mode: 'insensitive' } },
       ];
     }
-    const orderBy = parseSort(query.sort);
+    const orderBy = parseSort(query.sort, CODE_SORT_FIELDS);
     const [items, total] = await this.prisma.$transaction([
       this.prisma.category.findMany({
         where,

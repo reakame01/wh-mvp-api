@@ -10,7 +10,7 @@ import {
 } from '../../application/master-data/ports/product.repository.port';
 import { Product } from '../../domain/master-data/product';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseSort } from './sort';
+import { PRODUCT_SORT_FIELDS, parseSort } from './sort';
 
 function mapProduct(row: PrismaProduct): Product {
   return {
@@ -20,7 +20,7 @@ function mapProduct(row: PrismaProduct): Product {
     name: row.name,
     categoryId: row.categoryId,
     unit: row.unit,
-    reorderPoint: row.reorderPoint.toFixed(),
+    reorderPoint: row.reorderPoint.toFixed(4),
     imageUrl: row.imageUrl,
     isActive: row.isActive,
     createdAt: row.createdAt,
@@ -64,7 +64,7 @@ export class PrismaProductRepository implements ProductRepositoryPort {
         { barcode: { contains: query.search, mode: 'insensitive' } },
       ];
     }
-    const orderBy = parseSort(query.sort);
+    const orderBy = parseSort(query.sort, PRODUCT_SORT_FIELDS);
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.product.findMany({
         where,
@@ -133,15 +133,14 @@ export class PrismaProductRepository implements ProductRepositoryPort {
     input: ProductUpdateInput,
   ): Promise<ActivateOrMoveProductResult> {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT id FROM products WHERE id = ${id} FOR UPDATE
-      `;
-      const product = await tx.product.findUnique({ where: { id } });
-      if (!product) {
+      // Read without lock first so we can take locks in category → product order
+      // (same order as category deactivate) and avoid AB-BA deadlocks.
+      const existing = await tx.product.findUnique({ where: { id } });
+      if (!existing) {
         return { ok: false, reason: 'not_found' };
       }
 
-      const targetCategoryId = input.categoryId ?? product.categoryId;
+      const targetCategoryId = input.categoryId ?? existing.categoryId;
       await tx.$queryRaw`
         SELECT id FROM categories WHERE id = ${targetCategoryId} FOR UPDATE
       `;
@@ -153,6 +152,14 @@ export class PrismaProductRepository implements ProductRepositoryPort {
       }
       if (!category.isActive) {
         return { ok: false, reason: 'category_inactive' };
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM products WHERE id = ${id} FOR UPDATE
+      `;
+      const product = await tx.product.findUnique({ where: { id } });
+      if (!product) {
+        return { ok: false, reason: 'not_found' };
       }
 
       const updated = await tx.product.update({

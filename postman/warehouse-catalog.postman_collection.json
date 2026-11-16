@@ -126,7 +126,7 @@
               "pm.test('status 201 or 200', () => pm.expect([200,201]).to.include(pm.response.code));",
               "const body = pm.response.json();",
               "pm.environment.set('productId', body.id);",
-              "pm.test('reorderPoint string', () => pm.expect(body.reorderPoint).to.eql('5.0000'));",
+              "pm.test('reorderPoint 4dp string', () => pm.expect(body.reorderPoint).to.eql('5.0000'));",
               "pm.test('barcode null when blank', () => pm.expect(body.barcode).to.eql(null));"
             ]
           }
