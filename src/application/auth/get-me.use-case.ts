@@ -3,7 +3,7 @@ import { UserNotFoundError } from '../../domain/auth/auth.errors';
 import { toPublicUser } from '../../domain/auth/user';
 import {
   USER_REPOSITORY,
-  UserRepositoryPort,
+  type UserRepositoryPort,
 } from './ports/user.repository.port';
 
 @Injectable()

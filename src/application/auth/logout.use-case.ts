@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   REFRESH_TOKEN_REPOSITORY,
-  RefreshTokenRepositoryPort,
+  type RefreshTokenRepositoryPort,
 } from './ports/refresh-token.repository.port';
-import { TOKEN_SERVICE, TokenPort } from './ports/token.port';
+import { TOKEN_SERVICE, type TokenPort } from './ports/token.port';
 
 export type LogoutInput = {
   userId: string;

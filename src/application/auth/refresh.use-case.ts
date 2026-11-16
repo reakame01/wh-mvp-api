@@ -3,12 +3,12 @@ import { InvalidRefreshTokenError } from '../../domain/auth/auth.errors';
 import { toPublicUser } from '../../domain/auth/user';
 import {
   REFRESH_TOKEN_REPOSITORY,
-  RefreshTokenRepositoryPort,
+  type RefreshTokenRepositoryPort,
 } from './ports/refresh-token.repository.port';
-import { TOKEN_SERVICE, TokenPort } from './ports/token.port';
+import { TOKEN_SERVICE, type TokenPort } from './ports/token.port';
 import {
   USER_REPOSITORY,
-  UserRepositoryPort,
+  type UserRepositoryPort,
 } from './ports/user.repository.port';
 import { AuthTokensResult } from './login.use-case';
 

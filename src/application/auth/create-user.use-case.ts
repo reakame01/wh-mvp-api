@@ -7,11 +7,11 @@ import { Role } from '../../domain/auth/role';
 import { toPublicUser } from '../../domain/auth/user';
 import {
   PASSWORD_HASHER,
-  PasswordHasherPort,
+  type PasswordHasherPort,
 } from './ports/password-hasher.port';
 import {
   USER_REPOSITORY,
-  UserRepositoryPort,
+  type UserRepositoryPort,
 } from './ports/user.repository.port';
 
 export type CreateUserInput = {
