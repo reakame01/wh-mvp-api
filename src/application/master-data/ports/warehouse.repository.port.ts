@@ -35,6 +35,12 @@ export interface WarehouseRepositoryPort {
   create(input: WarehouseCreateInput): Promise<Warehouse>;
   update(id: string, input: WarehouseUpdateInput): Promise<Warehouse>;
   countActiveLocations(warehouseId: string): Promise<number>;
-  /** Locks warehouse (+ active locations) then deactivates if none active. */
-  deactivateIfNoActiveLocations(id: string): Promise<DeactivateWarehouseResult>;
+  /**
+   * Locks warehouse + all its locations (ordered), then sets isActive=false
+   * and optional name/address in the same UPDATE.
+   */
+  deactivateIfNoActiveLocations(
+    id: string,
+    fields?: { name?: string; address?: string | null },
+  ): Promise<DeactivateWarehouseResult>;
 }

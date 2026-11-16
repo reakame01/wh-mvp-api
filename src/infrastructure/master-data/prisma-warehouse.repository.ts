@@ -78,6 +78,7 @@ export class PrismaWarehouseRepository implements WarehouseRepositoryPort {
 
   async deactivateIfNoActiveLocations(
     id: string,
+    fields?: { name?: string; address?: string | null },
   ): Promise<DeactivateWarehouseResult> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
@@ -88,9 +89,11 @@ export class PrismaWarehouseRepository implements WarehouseRepositoryPort {
         return { ok: false, reason: 'not_found' };
       }
 
+      // Lock every location row (ordered) so concurrent creates/activates wait.
       await tx.$queryRaw`
         SELECT id FROM locations
-        WHERE warehouse_id = ${id} AND is_active = true
+        WHERE warehouse_id = ${id}
+        ORDER BY id
         FOR UPDATE
       `;
       const activeCount = await tx.location.count({
@@ -102,7 +105,11 @@ export class PrismaWarehouseRepository implements WarehouseRepositoryPort {
 
       const updated = await tx.warehouse.update({
         where: { id },
-        data: { isActive: false },
+        data: {
+          isActive: false,
+          name: fields?.name,
+          address: fields?.address,
+        },
       });
       return { ok: true, warehouse: updated };
     });

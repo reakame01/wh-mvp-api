@@ -1,4 +1,5 @@
 import {
+  InvalidMasterDataInputError,
   WarehouseHasActiveLocationsError,
   WarehouseNotFoundError,
 } from '../../domain/master-data/master-data.errors';
@@ -29,6 +30,32 @@ describe('UpdateWarehouseUseCase', () => {
     updatedAt: new Date(),
   };
 
+  it('validates blank name before deactivate so no partial commit', async () => {
+    await expect(
+      useCase.execute({ id: 'w1', isActive: false, name: '   ' }),
+    ).rejects.toBeInstanceOf(InvalidMasterDataInputError);
+    expect(warehouses.deactivateIfNoActiveLocations).not.toHaveBeenCalled();
+  });
+
+  it('passes name/address into single deactivate transaction', async () => {
+    warehouses.deactivateIfNoActiveLocations.mockResolvedValue({
+      ok: true,
+      warehouse: { ...warehouse, isActive: false, name: 'Closed' },
+    });
+
+    await useCase.execute({
+      id: 'w1',
+      isActive: false,
+      name: 'Closed',
+      address: 'x',
+    });
+
+    expect(warehouses.deactivateIfNoActiveLocations).toHaveBeenCalledWith(
+      'w1',
+      { name: 'Closed', address: 'x' },
+    );
+  });
+
   it('blocks deactivate when active locations exist', async () => {
     warehouses.deactivateIfNoActiveLocations.mockResolvedValue({
       ok: false,
@@ -38,16 +65,6 @@ describe('UpdateWarehouseUseCase', () => {
     await expect(
       useCase.execute({ id: 'w1', isActive: false }),
     ).rejects.toBeInstanceOf(WarehouseHasActiveLocationsError);
-  });
-
-  it('allows deactivate when no active locations', async () => {
-    warehouses.deactivateIfNoActiveLocations.mockResolvedValue({
-      ok: true,
-      warehouse: { ...warehouse, isActive: false },
-    });
-
-    const actual = await useCase.execute({ id: 'w1', isActive: false });
-    expect(actual.isActive).toBe(false);
   });
 
   it('throws when warehouse missing on deactivate', async () => {

@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  CreateLocationResult,
   LocationCreateInput,
   LocationListQuery,
   LocationRepositoryPort,
   LocationUpdateInput,
   ReparentLocationResult,
+  UpdateLocationLockedResult,
 } from '../../application/master-data/ports/location.repository.port';
 import { wouldCreateLocationCycle } from '../../domain/master-data/location-tree';
 import { Location } from '../../domain/master-data/location';
@@ -90,6 +92,93 @@ export class PrismaLocationRepository implements LocationRepositoryPort {
     return new Map(rows.map((row) => [row.id, row.parentLocationId]));
   }
 
+  async createUnderActiveWarehouse(
+    input: LocationCreateInput,
+  ): Promise<CreateLocationResult> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM warehouses WHERE id = ${input.warehouseId} FOR UPDATE
+      `;
+      const warehouse = await tx.warehouse.findUnique({
+        where: { id: input.warehouseId },
+      });
+      if (!warehouse) {
+        return { ok: false, reason: 'warehouse_not_found' };
+      }
+      if (!warehouse.isActive) {
+        return { ok: false, reason: 'warehouse_inactive' };
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM locations
+        WHERE warehouse_id = ${input.warehouseId}
+        ORDER BY id
+        FOR UPDATE
+      `;
+
+      const parentLocationId = input.parentLocationId ?? null;
+      if (parentLocationId) {
+        const parent = await tx.location.findUnique({
+          where: { id: parentLocationId },
+        });
+        if (
+          !parent ||
+          parent.warehouseId !== input.warehouseId ||
+          !parent.isActive
+        ) {
+          return { ok: false, reason: 'parent_invalid' };
+        }
+      }
+
+      const location = await tx.location.create({
+        data: {
+          warehouseId: input.warehouseId,
+          code: input.code,
+          name: input.name,
+          parentLocationId,
+        },
+      });
+      return { ok: true, location };
+    });
+  }
+
+  async updateWithWarehouseLock(
+    id: string,
+    fields: Omit<LocationUpdateInput, 'parentLocationId'>,
+  ): Promise<UpdateLocationLockedResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.location.findUnique({ where: { id } });
+      if (!existing) {
+        return { ok: false, reason: 'not_found' };
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM warehouses WHERE id = ${existing.warehouseId} FOR UPDATE
+      `;
+      const warehouse = await tx.warehouse.findUnique({
+        where: { id: existing.warehouseId },
+      });
+      if (!warehouse) {
+        return { ok: false, reason: 'warehouse_not_found' };
+      }
+
+      const willBeActive =
+        fields.isActive !== undefined ? fields.isActive : existing.isActive;
+      if (willBeActive && !warehouse.isActive) {
+        return { ok: false, reason: 'warehouse_inactive' };
+      }
+
+      const location = await tx.location.update({
+        where: { id },
+        data: {
+          name: fields.name,
+          isActive: fields.isActive,
+        },
+      });
+      return { ok: true, location };
+    });
+  }
+
   async reparentWithLock(
     id: string,
     parentLocationId: string | null,
@@ -102,8 +191,25 @@ export class PrismaLocationRepository implements LocationRepositoryPort {
       }
 
       await tx.$queryRaw`
+        SELECT id FROM warehouses WHERE id = ${existing.warehouseId} FOR UPDATE
+      `;
+      const warehouse = await tx.warehouse.findUnique({
+        where: { id: existing.warehouseId },
+      });
+      if (!warehouse) {
+        return { ok: false, reason: 'warehouse_not_found' };
+      }
+
+      const willBeActive =
+        fields?.isActive !== undefined ? fields.isActive : existing.isActive;
+      if (willBeActive && !warehouse.isActive) {
+        return { ok: false, reason: 'warehouse_inactive' };
+      }
+
+      await tx.$queryRaw`
         SELECT id FROM locations
         WHERE warehouse_id = ${existing.warehouseId}
+        ORDER BY id
         FOR UPDATE
       `;
 
@@ -116,8 +222,11 @@ export class PrismaLocationRepository implements LocationRepositoryPort {
       );
 
       if (parentLocationId !== null) {
+        if (parentLocationId === id) {
+          return { ok: false, reason: 'cycle' };
+        }
         const parent = rows.find((row) => row.id === parentLocationId);
-        if (!parent || !parent.isActive || parentLocationId === id) {
+        if (!parent || !parent.isActive) {
           return { ok: false, reason: 'parent_invalid' };
         }
         if (wouldCreateLocationCycle(id, parentLocationId, parentMap)) {

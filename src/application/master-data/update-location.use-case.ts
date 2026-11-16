@@ -14,10 +14,6 @@ import {
   LOCATION_REPOSITORY,
   type LocationRepositoryPort,
 } from './ports/location.repository.port';
-import {
-  WAREHOUSE_REPOSITORY,
-  type WarehouseRepositoryPort,
-} from './ports/warehouse.repository.port';
 
 export type UpdateLocationInput = {
   id: string;
@@ -31,27 +27,9 @@ export class UpdateLocationUseCase {
   constructor(
     @Inject(LOCATION_REPOSITORY)
     private readonly locations: LocationRepositoryPort,
-    @Inject(WAREHOUSE_REPOSITORY)
-    private readonly warehouses: WarehouseRepositoryPort,
   ) {}
 
   async execute(input: UpdateLocationInput) {
-    const existing = await this.locations.findById(input.id);
-    if (!existing) {
-      throw new LocationNotFoundError();
-    }
-
-    const warehouse = await this.warehouses.findById(existing.warehouseId);
-    if (!warehouse) {
-      throw new WarehouseNotFoundError();
-    }
-
-    const willBeActive =
-      input.isActive !== undefined ? input.isActive : existing.isActive;
-    if (willBeActive && !warehouse.isActive) {
-      throw new WarehouseInactiveError();
-    }
-
     const fields = {
       name:
         input.name !== undefined
@@ -72,6 +50,12 @@ export class UpdateLocationUseCase {
         if (result.reason === 'not_found') {
           throw new LocationNotFoundError();
         }
+        if (result.reason === 'warehouse_not_found') {
+          throw new WarehouseNotFoundError();
+        }
+        if (result.reason === 'warehouse_inactive') {
+          throw new WarehouseInactiveError();
+        }
         if (result.reason === 'cycle') {
           throw new LocationCycleError();
         }
@@ -80,6 +64,19 @@ export class UpdateLocationUseCase {
       return result.location;
     }
 
-    return this.locations.update(input.id, fields);
+    const result = await this.locations.updateWithWarehouseLock(
+      input.id,
+      fields,
+    );
+    if (!result.ok) {
+      if (result.reason === 'not_found') {
+        throw new LocationNotFoundError();
+      }
+      if (result.reason === 'warehouse_not_found') {
+        throw new WarehouseNotFoundError();
+      }
+      throw new WarehouseInactiveError();
+    }
+    return result.location;
   }
 }

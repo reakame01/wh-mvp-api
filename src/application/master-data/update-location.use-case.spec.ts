@@ -5,7 +5,6 @@ import {
   WarehouseInactiveError,
 } from '../../domain/master-data/master-data.errors';
 import { LocationRepositoryPort } from './ports/location.repository.port';
-import { WarehouseRepositoryPort } from './ports/warehouse.repository.port';
 import { UpdateLocationUseCase } from './update-location.use-case';
 
 describe('UpdateLocationUseCase', () => {
@@ -16,52 +15,26 @@ describe('UpdateLocationUseCase', () => {
     create: jest.fn(),
     update: jest.fn(),
     parentMapForWarehouse: jest.fn(),
+    createUnderActiveWarehouse: jest.fn(),
+    updateWithWarehouseLock: jest.fn(),
     reparentWithLock: jest.fn(),
   };
-  const warehouses: jest.Mocked<WarehouseRepositoryPort> = {
-    findById: jest.fn(),
-    findByCode: jest.fn(),
-    list: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    countActiveLocations: jest.fn(),
-    deactivateIfNoActiveLocations: jest.fn(),
-  };
-  const useCase = new UpdateLocationUseCase(locations, warehouses);
+  const useCase = new UpdateLocationUseCase(locations);
 
   beforeEach(() => jest.clearAllMocks());
 
-  const warehouse = {
-    id: 'w1',
-    code: 'BKK',
-    name: 'Bangkok',
-    address: null as string | null,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const root = {
-    id: 'root',
-    warehouseId: 'w1',
-    parentLocationId: null as string | null,
-    code: 'ROOT',
-    name: 'Root',
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
   const leaf = {
-    ...root,
     id: 'leaf',
-    parentLocationId: 'root',
+    warehouseId: 'w1',
+    parentLocationId: 'root' as string | null,
     code: 'LEAF',
     name: 'Leaf',
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
-  it('rejects cycle when reparenting ancestor under descendant', async () => {
-    locations.findById.mockResolvedValue(root);
-    warehouses.findById.mockResolvedValue(warehouse);
+  it('rejects cycle when reparenting', async () => {
     locations.reparentWithLock.mockResolvedValue({
       ok: false,
       reason: 'cycle',
@@ -72,9 +45,7 @@ describe('UpdateLocationUseCase', () => {
     ).rejects.toBeInstanceOf(LocationCycleError);
   });
 
-  it('rejects parent from other warehouse', async () => {
-    locations.findById.mockResolvedValue(leaf);
-    warehouses.findById.mockResolvedValue(warehouse);
+  it('rejects parent invalid', async () => {
     locations.reparentWithLock.mockResolvedValue({
       ok: false,
       reason: 'parent_invalid',
@@ -86,8 +57,6 @@ describe('UpdateLocationUseCase', () => {
   });
 
   it('clears parent with null via locked reparent', async () => {
-    locations.findById.mockResolvedValue(leaf);
-    warehouses.findById.mockResolvedValue(warehouse);
     locations.reparentWithLock.mockResolvedValue({
       ok: true,
       location: { ...leaf, parentLocationId: null },
@@ -105,8 +74,6 @@ describe('UpdateLocationUseCase', () => {
   });
 
   it('treats empty parentLocationId as clear parent', async () => {
-    locations.findById.mockResolvedValue(leaf);
-    warehouses.findById.mockResolvedValue(warehouse);
     locations.reparentWithLock.mockResolvedValue({
       ok: true,
       location: { ...leaf, parentLocationId: null },
@@ -120,9 +87,11 @@ describe('UpdateLocationUseCase', () => {
     );
   });
 
-  it('blocks reactivation under inactive warehouse', async () => {
-    locations.findById.mockResolvedValue({ ...leaf, isActive: false });
-    warehouses.findById.mockResolvedValue({ ...warehouse, isActive: false });
+  it('blocks reactivation under inactive warehouse via locked update', async () => {
+    locations.updateWithWarehouseLock.mockResolvedValue({
+      ok: false,
+      reason: 'warehouse_inactive',
+    });
 
     await expect(
       useCase.execute({ id: 'leaf', isActive: true }),
@@ -130,7 +99,10 @@ describe('UpdateLocationUseCase', () => {
   });
 
   it('throws when location missing', async () => {
-    locations.findById.mockResolvedValue(null);
+    locations.updateWithWarehouseLock.mockResolvedValue({
+      ok: false,
+      reason: 'not_found',
+    });
     await expect(
       useCase.execute({ id: 'missing', name: 'X' }),
     ).rejects.toBeInstanceOf(LocationNotFoundError);

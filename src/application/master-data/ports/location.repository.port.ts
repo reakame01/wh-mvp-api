@@ -24,11 +24,30 @@ export type LocationUpdateInput = {
   isActive?: boolean;
 };
 
+export type CreateLocationResult =
+  | { ok: true; location: Location }
+  | {
+      ok: false;
+      reason: 'warehouse_not_found' | 'warehouse_inactive' | 'parent_invalid';
+    };
+
+export type UpdateLocationLockedResult =
+  | { ok: true; location: Location }
+  | {
+      ok: false;
+      reason: 'not_found' | 'warehouse_not_found' | 'warehouse_inactive';
+    };
+
 export type ReparentLocationResult =
   | { ok: true; location: Location }
   | {
       ok: false;
-      reason: 'not_found' | 'parent_invalid' | 'cycle';
+      reason:
+        | 'not_found'
+        | 'parent_invalid'
+        | 'cycle'
+        | 'warehouse_not_found'
+        | 'warehouse_inactive';
     };
 
 export interface LocationRepositoryPort {
@@ -40,14 +59,19 @@ export interface LocationRepositoryPort {
   list(query: LocationListQuery): Promise<{ items: Location[]; total: number }>;
   create(input: LocationCreateInput): Promise<Location>;
   update(id: string, input: LocationUpdateInput): Promise<Location>;
-  /** Map of locationId → parentLocationId for one warehouse (cycle checks). */
   parentMapForWarehouse(
     warehouseId: string,
   ): Promise<Map<string, string | null>>;
-  /**
-   * Locks all locations in the warehouse, validates parent/cycle, then updates.
-   * `fields` may also include name / isActive applied in the same transaction.
-   */
+  /** Lock warehouse (and locations), re-check active, then insert. */
+  createUnderActiveWarehouse(
+    input: LocationCreateInput,
+  ): Promise<CreateLocationResult>;
+  /** Lock warehouse, re-check active when resulting row is active, then update. */
+  updateWithWarehouseLock(
+    id: string,
+    fields: Omit<LocationUpdateInput, 'parentLocationId'>,
+  ): Promise<UpdateLocationLockedResult>;
+  /** Lock warehouse + all locations ordered by id, validate parent/cycle, update. */
   reparentWithLock(
     id: string,
     parentLocationId: string | null,

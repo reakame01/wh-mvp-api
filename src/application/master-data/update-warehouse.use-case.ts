@@ -24,28 +24,23 @@ export class UpdateWarehouseUseCase {
   ) {}
 
   async execute(input: UpdateWarehouseInput) {
+    const name =
+      input.name !== undefined
+        ? requireTrimmedNonEmpty(input.name, 'name')
+        : undefined;
+    const address =
+      input.address === undefined ? undefined : input.address?.trim() || null;
+
     if (input.isActive === false) {
       const result = await this.warehouses.deactivateIfNoActiveLocations(
         input.id,
+        { name, address },
       );
       if (!result.ok) {
         if (result.reason === 'not_found') {
           throw new WarehouseNotFoundError();
         }
         throw new WarehouseHasActiveLocationsError();
-      }
-      // Apply other fields after deactivate if present
-      if (input.name !== undefined || input.address !== undefined) {
-        return this.warehouses.update(input.id, {
-          name:
-            input.name !== undefined
-              ? requireTrimmedNonEmpty(input.name, 'name')
-              : undefined,
-          address:
-            input.address === undefined
-              ? undefined
-              : input.address?.trim() || null,
-        });
       }
       return result.warehouse;
     }
@@ -56,12 +51,8 @@ export class UpdateWarehouseUseCase {
     }
 
     return this.warehouses.update(input.id, {
-      name:
-        input.name !== undefined
-          ? requireTrimmedNonEmpty(input.name, 'name')
-          : undefined,
-      address:
-        input.address === undefined ? undefined : input.address?.trim() || null,
+      name,
+      address,
       isActive: input.isActive,
     });
   }
