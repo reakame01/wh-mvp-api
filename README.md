@@ -101,7 +101,7 @@ SKU and codes are trimmed/uppercased. Product create/activate requires an **acti
 | `npm run start:dev` | Watch mode |
 | `npm run build` | Compile (`dist/main.js`) |
 | `npm test` | Unit tests |
-| `npm run test:cov` | Coverage |
+| `npm run test:cov` | Coverage (domain/application + filters/guards; HTTP via Postman; Prisma repos deferred to Stage 3 integration) |
 | `npm run lint` | ESLint |
 | `npm run prisma:deploy` | Apply migrations |
 | `npm run prisma:seed` | Seed admin user |
