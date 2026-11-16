@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wh-mvp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: warehouse_mvp
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d warehouse_mvp']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: wh-mvp-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    profiles:
+      - full
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: wh-mvp-rabbitmq
+    restart: unless-stopped
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    profiles:
+      - full
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wh-mvp-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/warehouse_mvp?schema=public
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
