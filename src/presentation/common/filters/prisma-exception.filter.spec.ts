@@ -83,4 +83,44 @@ describe('PrismaExceptionFilter', () => {
       expect.objectContaining({ code: 'CONCURRENCY_CONFLICT' }),
     );
   });
+
+  it('maps P2002 category code via modelName', () => {
+    const { host, json } = hostWithResponse();
+    const error = new Prisma.PrismaClientKnownRequestError('Unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { modelName: 'Category', target: ['code'] },
+    });
+    filter.catch(error, host);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'CATEGORY_CODE_TAKEN' }),
+    );
+  });
+
+  it('maps P2002 product sku to PRODUCT_SKU_TAKEN', () => {
+    const { host, json } = hostWithResponse();
+    const error = new Prisma.PrismaClientKnownRequestError('Unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { modelName: 'Product', target: ['sku'] },
+    });
+    filter.catch(error, host);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'PRODUCT_SKU_TAKEN' }),
+    );
+  });
+
+  it('maps category FK P2003 to CATEGORY_NOT_FOUND', () => {
+    const { host, status, json } = hostWithResponse();
+    const error = new Prisma.PrismaClientKnownRequestError('FK', {
+      code: 'P2003',
+      clientVersion: 'test',
+      meta: { field_name: 'products_category_id_fkey (index)' },
+    });
+    filter.catch(error, host);
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'CATEGORY_NOT_FOUND' }),
+    );
+  });
 });

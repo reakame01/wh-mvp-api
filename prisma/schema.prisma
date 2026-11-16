@@ -103,3 +103,48 @@ model Location {
   @@index([parentLocationId])
   @@map("locations")
 }
+
+model Category {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("suppliers")
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  sku          String   @unique
+  barcode      String?  @unique
+  name         String
+  categoryId   String   @map("category_id")
+  unit         String
+  reorderPoint Decimal  @map("reorder_point") @db.Decimal(18, 4)
+  imageUrl     String?  @map("image_url")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId])
+  @@map("products")
+}

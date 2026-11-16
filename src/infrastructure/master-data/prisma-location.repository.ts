@@ -12,7 +12,7 @@ import {
 import { wouldCreateLocationCycle } from '../../domain/master-data/location-tree';
 import { Location } from '../../domain/master-data/location';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseSort } from './sort';
+import { CODE_SORT_FIELDS, parseSort } from './sort';
 
 @Injectable()
 export class PrismaLocationRepository implements LocationRepositoryPort {
@@ -47,7 +47,7 @@ export class PrismaLocationRepository implements LocationRepositoryPort {
         { name: { contains: query.search, mode: 'insensitive' } },
       ];
     }
-    const orderBy = parseSort(query.sort);
+    const orderBy = parseSort(query.sort, CODE_SORT_FIELDS);
     const [items, total] = await this.prisma.$transaction([
       this.prisma.location.findMany({
         where,

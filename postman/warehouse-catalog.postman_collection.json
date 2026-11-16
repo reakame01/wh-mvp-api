@@ -1,0 +1,289 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Warehouse MVP — Catalog (Categories / Suppliers / Products)",
+    "description": "Slice 2.4 smoke: login → category → supplier → product → deactivate guards.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
+  "item": [
+    {
+      "name": "01 Login as Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.environment.set('accessToken', body.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "02 Create category",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('categoryCode', `CAT-${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201 or 200', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "const body = pm.response.json();",
+              "pm.environment.set('categoryId', body.id);",
+              "pm.test('code uppercased', () => pm.expect(body.code).to.eql(pm.environment.get('categoryCode').toUpperCase()));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{categoryCode}}\",\n  \"name\": \"Electronics\",\n  \"description\": \"Demo category\"\n}"
+        },
+        "url": "{{baseUrl}}/categories"
+      }
+    },
+    {
+      "name": "03 Create supplier",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('supplierCode', `SUP-${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201 or 200', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "pm.environment.set('supplierId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{supplierCode}}\",\n  \"name\": \"Acme Supplies\",\n  \"email\": \"sales@acme.example\"\n}"
+        },
+        "url": "{{baseUrl}}/suppliers"
+      }
+    },
+    {
+      "name": "04 Create product",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('productSku', `SKU-${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201 or 200', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "const body = pm.response.json();",
+              "pm.environment.set('productId', body.id);",
+              "pm.test('reorderPoint 4dp string', () => pm.expect(body.reorderPoint).to.eql('5.0000'));",
+              "pm.test('barcode null when blank', () => pm.expect(body.barcode).to.eql(null));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"barcode\": \"\",\n  \"name\": \"Demo Widget\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"unit\": \"EA\",\n  \"reorderPoint\": \"5\"\n}"
+        },
+        "url": "{{baseUrl}}/products"
+      }
+    },
+    {
+      "name": "05 List products by category",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has meta', () => pm.expect(body.meta.total).to.be.at.least(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/products?page=1&pageSize=20&categoryId={{categoryId}}&sort=sku:asc"
+      }
+    },
+    {
+      "name": "06 Block category deactivate with active products",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 409', () => pm.response.to.have.status(409));",
+              "pm.test('CATEGORY_HAS_ACTIVE_PRODUCTS', () => pm.expect(pm.response.json().code).to.eql('CATEGORY_HAS_ACTIVE_PRODUCTS'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isActive\": false\n}"
+        },
+        "url": "{{baseUrl}}/categories/{{categoryId}}"
+      }
+    },
+    {
+      "name": "07 Soft deactivate product then category",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('inactive', () => pm.expect(pm.response.json().isActive).to.eql(false));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isActive\": false\n}"
+        },
+        "url": "{{baseUrl}}/products/{{productId}}"
+      }
+    },
+    {
+      "name": "08 Deactivate category after products inactive",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('inactive', () => pm.expect(pm.response.json().isActive).to.eql(false));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isActive\": false\n}"
+        },
+        "url": "{{baseUrl}}/categories/{{categoryId}}"
+      }
+    },
+    {
+      "name": "09 Reject product under inactive category",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('productSku2', `SKU-X-${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 409', () => pm.response.to.have.status(409));",
+              "pm.test('CATEGORY_INACTIVE', () => pm.expect(pm.response.json().code).to.eql('CATEGORY_INACTIVE'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{productSku2}}\",\n  \"name\": \"Should Fail\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"unit\": \"EA\",\n  \"reorderPoint\": \"0\"\n}"
+        },
+        "url": "{{baseUrl}}/products"
+      }
+    }
+  ]
+}
