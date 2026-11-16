@@ -1,0 +1,76 @@
+// Jenkins pipeline for Postman CLI (Collection Runner).
+// Prerequisites:
+//   - Node.js tool configured in Jenkins (Manage Jenkins → Tools)
+//   - API reachable at baseUrl (local job: start Nest + Postgres first;
+//     or point baseUrl at a deployed demo)
+//   - Optional: POSTMAN_API_KEY credential only if you run a cloud collection ID
+//
+// Replace YOUR_NODEJS_TOOL_NAME with the exact tool name from Jenkins.
+
+pipeline {
+  agent any
+
+  tools {
+    nodejs 'YOUR_NODEJS_TOOL_NAME'
+  }
+
+  environment {
+    // Optional — only needed for `postman login` + cloud collection UUID runs
+    // POSTMAN_API_KEY = credentials('postman-api-key')
+    BASE_URL = "${params.BASE_URL ?: 'http://localhost:3000'}"
+    ADMIN_EMAIL = "${params.ADMIN_EMAIL ?: 'admin@warehouse.local'}"
+    ADMIN_PASSWORD = "${params.ADMIN_PASSWORD ?: 'ChangeMeAdmin123!'}"
+  }
+
+  parameters {
+    string(name: 'BASE_URL', defaultValue: 'http://localhost:3000', description: 'API base URL')
+    string(name: 'ADMIN_EMAIL', defaultValue: 'admin@warehouse.local', description: 'Seeded admin email')
+    password(name: 'ADMIN_PASSWORD', defaultValue: 'ChangeMeAdmin123!', description: 'Seeded admin password (demo only)')
+  }
+
+  stages {
+    stage('Install Postman CLI') {
+      steps {
+        sh 'curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh'
+        sh 'export PATH="$HOME/.postman/bin:$PATH" && postman --version'
+      }
+    }
+
+    // Uncomment if you publish the collection to Postman Cloud and prefer UUID:
+    // stage('Postman CLI Login') {
+    //   steps {
+    //     sh 'export PATH="$HOME/.postman/bin:$PATH" && postman login --with-api-key $POSTMAN_API_KEY'
+    //   }
+    // }
+
+    stage('Running collection (local file)') {
+      steps {
+        sh '''
+          export PATH="$HOME/.postman/bin:$PATH"
+          postman collection run postman/warehouse-auth.postman_collection.json \
+            -e postman/local.postman_environment.json \
+            --env-var "baseUrl=${BASE_URL}" \
+            --env-var "adminEmail=${ADMIN_EMAIL}" \
+            --env-var "adminPassword=${ADMIN_PASSWORD}"
+        '''
+      }
+    }
+
+    // Cloud UUID variant (after login), like Postman's sample:
+    // Collection UID in Postman Cloud: 5006774-8ff6c4f4-df03-4401-b7ce-e7012fc6d2bd
+    // stage('Postman CLI Login') {
+    //   steps {
+    //     sh 'export PATH="$HOME/.postman/bin:$PATH" && postman login --with-api-key $POSTMAN_API_KEY'
+    //   }
+    // }
+    // stage('Running collection (cloud)') {
+    //   steps {
+    //     sh '''
+    //       export PATH="$HOME/.postman/bin:$PATH"
+    //       postman collection run "5006774-8ff6c4f4-df03-4401-b7ce-e7012fc6d2bd" \
+    //         -e "5006774-8bbc867c-e099-4fd4-8bd7-a68c24db19a5"
+    //     '''
+    //   }
+    // }
+  }
+}
