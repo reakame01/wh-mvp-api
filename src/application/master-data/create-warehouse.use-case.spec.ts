@@ -1,4 +1,7 @@
-import { WarehouseCodeTakenError } from '../../domain/master-data/master-data.errors';
+import {
+  InvalidMasterDataInputError,
+  WarehouseCodeTakenError,
+} from '../../domain/master-data/master-data.errors';
 import { CreateWarehouseUseCase } from './create-warehouse.use-case';
 import { WarehouseRepositoryPort } from './ports/warehouse.repository.port';
 
@@ -10,6 +13,7 @@ describe('CreateWarehouseUseCase', () => {
     create: jest.fn(),
     update: jest.fn(),
     countActiveLocations: jest.fn(),
+    deactivateIfNoActiveLocations: jest.fn(),
   };
   const useCase = new CreateWarehouseUseCase(warehouses);
 
@@ -38,6 +42,12 @@ describe('CreateWarehouseUseCase', () => {
       address: null,
     });
     expect(actual.code).toBe('BKK-01');
+  });
+
+  it('rejects whitespace-only code', async () => {
+    await expect(
+      useCase.execute({ code: '   ', name: 'X' }),
+    ).rejects.toBeInstanceOf(InvalidMasterDataInputError);
   });
 
   it('rejects duplicate code', async () => {

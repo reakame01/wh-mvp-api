@@ -8,7 +8,11 @@ import {
   Min,
 } from 'class-validator';
 
-function toOptionalBoolean({ value }: { value: unknown }): boolean | undefined {
+/**
+ * Recognized booleans become true/false.
+ * Unknown non-empty values stay as-is so `@IsBoolean()` returns 400.
+ */
+function toOptionalBoolean({ value }: { value: unknown }): unknown {
   if (value === undefined || value === null || value === '') {
     return undefined;
   }
@@ -18,7 +22,7 @@ function toOptionalBoolean({ value }: { value: unknown }): boolean | undefined {
   if (value === false || value === 'false' || value === '0') {
     return false;
   }
-  return undefined;
+  return value;
 }
 
 export class ListQueryDto {

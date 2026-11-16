@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  DeactivateWarehouseResult,
   WarehouseCreateInput,
   WarehouseListQuery,
   WarehouseRepositoryPort,
@@ -72,6 +73,38 @@ export class PrismaWarehouseRepository implements WarehouseRepositoryPort {
   countActiveLocations(warehouseId: string): Promise<number> {
     return this.prisma.location.count({
       where: { warehouseId, isActive: true },
+    });
+  }
+
+  async deactivateIfNoActiveLocations(
+    id: string,
+  ): Promise<DeactivateWarehouseResult> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM warehouses WHERE id = ${id} FOR UPDATE
+      `;
+      const warehouse = await tx.warehouse.findUnique({ where: { id } });
+      if (!warehouse) {
+        return { ok: false, reason: 'not_found' };
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM locations
+        WHERE warehouse_id = ${id} AND is_active = true
+        FOR UPDATE
+      `;
+      const activeCount = await tx.location.count({
+        where: { warehouseId: id, isActive: true },
+      });
+      if (activeCount > 0) {
+        return { ok: false, reason: 'has_active_locations' };
+      }
+
+      const updated = await tx.warehouse.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      return { ok: true, warehouse: updated };
     });
   }
 }

@@ -29,6 +29,21 @@ export class WarehouseHasActiveLocationsError extends MasterDataError {
   }
 }
 
+export class WarehouseInactiveError extends MasterDataError {
+  constructor() {
+    super(
+      'WAREHOUSE_INACTIVE',
+      'Cannot create or activate locations under an inactive warehouse',
+    );
+  }
+}
+
+export class InvalidMasterDataInputError extends MasterDataError {
+  constructor(message = 'Invalid master data input') {
+    super('MASTER_DATA_INVALID_INPUT', message);
+  }
+}
+
 export class LocationNotFoundError extends MasterDataError {
   constructor() {
     super('LOCATION_NOT_FOUND', 'Location not found');

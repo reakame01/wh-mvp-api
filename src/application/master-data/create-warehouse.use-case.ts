@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { WarehouseCodeTakenError } from '../../domain/master-data/master-data.errors';
+import { requireTrimmedNonEmpty } from '../../domain/master-data/normalize';
 import {
   WAREHOUSE_REPOSITORY,
   type WarehouseRepositoryPort,
@@ -19,8 +20,8 @@ export class CreateWarehouseUseCase {
   ) {}
 
   async execute(input: CreateWarehouseInput) {
-    const code = input.code.trim().toUpperCase();
-    const name = input.name.trim();
+    const code = requireTrimmedNonEmpty(input.code, 'code').toUpperCase();
+    const name = requireTrimmedNonEmpty(input.name, 'name');
     const existing = await this.warehouses.findByCode(code);
     if (existing) {
       throw new WarehouseCodeTakenError();

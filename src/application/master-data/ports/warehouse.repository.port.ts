@@ -22,6 +22,10 @@ export type WarehouseUpdateInput = {
   isActive?: boolean;
 };
 
+export type DeactivateWarehouseResult =
+  | { ok: true; warehouse: Warehouse }
+  | { ok: false; reason: 'not_found' | 'has_active_locations' };
+
 export interface WarehouseRepositoryPort {
   findById(id: string): Promise<Warehouse | null>;
   findByCode(code: string): Promise<Warehouse | null>;
@@ -31,4 +35,6 @@ export interface WarehouseRepositoryPort {
   create(input: WarehouseCreateInput): Promise<Warehouse>;
   update(id: string, input: WarehouseUpdateInput): Promise<Warehouse>;
   countActiveLocations(warehouseId: string): Promise<number>;
+  /** Locks warehouse (+ active locations) then deactivates if none active. */
+  deactivateIfNoActiveLocations(id: string): Promise<DeactivateWarehouseResult>;
 }

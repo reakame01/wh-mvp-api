@@ -3,6 +3,7 @@ import {
   WarehouseHasActiveLocationsError,
   WarehouseNotFoundError,
 } from '../../domain/master-data/master-data.errors';
+import { requireTrimmedNonEmpty } from '../../domain/master-data/normalize';
 import {
   WAREHOUSE_REPOSITORY,
   type WarehouseRepositoryPort,
@@ -23,22 +24,42 @@ export class UpdateWarehouseUseCase {
   ) {}
 
   async execute(input: UpdateWarehouseInput) {
+    if (input.isActive === false) {
+      const result = await this.warehouses.deactivateIfNoActiveLocations(
+        input.id,
+      );
+      if (!result.ok) {
+        if (result.reason === 'not_found') {
+          throw new WarehouseNotFoundError();
+        }
+        throw new WarehouseHasActiveLocationsError();
+      }
+      // Apply other fields after deactivate if present
+      if (input.name !== undefined || input.address !== undefined) {
+        return this.warehouses.update(input.id, {
+          name:
+            input.name !== undefined
+              ? requireTrimmedNonEmpty(input.name, 'name')
+              : undefined,
+          address:
+            input.address === undefined
+              ? undefined
+              : input.address?.trim() || null,
+        });
+      }
+      return result.warehouse;
+    }
+
     const existing = await this.warehouses.findById(input.id);
     if (!existing) {
       throw new WarehouseNotFoundError();
     }
 
-    if (input.isActive === false) {
-      const activeLocations = await this.warehouses.countActiveLocations(
-        input.id,
-      );
-      if (activeLocations > 0) {
-        throw new WarehouseHasActiveLocationsError();
-      }
-    }
-
     return this.warehouses.update(input.id, {
-      name: input.name?.trim(),
+      name:
+        input.name !== undefined
+          ? requireTrimmedNonEmpty(input.name, 'name')
+          : undefined,
       address:
         input.address === undefined ? undefined : input.address?.trim() || null,
       isActive: input.isActive,

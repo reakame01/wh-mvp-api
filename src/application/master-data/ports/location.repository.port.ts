@@ -24,6 +24,13 @@ export type LocationUpdateInput = {
   isActive?: boolean;
 };
 
+export type ReparentLocationResult =
+  | { ok: true; location: Location }
+  | {
+      ok: false;
+      reason: 'not_found' | 'parent_invalid' | 'cycle';
+    };
+
 export interface LocationRepositoryPort {
   findById(id: string): Promise<Location | null>;
   findByWarehouseAndCode(
@@ -37,4 +44,13 @@ export interface LocationRepositoryPort {
   parentMapForWarehouse(
     warehouseId: string,
   ): Promise<Map<string, string | null>>;
+  /**
+   * Locks all locations in the warehouse, validates parent/cycle, then updates.
+   * `fields` may also include name / isActive applied in the same transaction.
+   */
+  reparentWithLock(
+    id: string,
+    parentLocationId: string | null,
+    fields?: Omit<LocationUpdateInput, 'parentLocationId'>,
+  ): Promise<ReparentLocationResult>;
 }

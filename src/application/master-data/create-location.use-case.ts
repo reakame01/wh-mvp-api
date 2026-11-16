@@ -2,8 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   LocationCodeTakenError,
   LocationParentInvalidError,
+  WarehouseInactiveError,
   WarehouseNotFoundError,
 } from '../../domain/master-data/master-data.errors';
+import {
+  normalizeOptionalParentId,
+  requireTrimmedNonEmpty,
+} from '../../domain/master-data/normalize';
 import {
   LOCATION_REPOSITORY,
   type LocationRepositoryPort,
@@ -34,9 +39,12 @@ export class CreateLocationUseCase {
     if (!warehouse) {
       throw new WarehouseNotFoundError();
     }
+    if (!warehouse.isActive) {
+      throw new WarehouseInactiveError();
+    }
 
-    const code = input.code.trim().toUpperCase();
-    const name = input.name.trim();
+    const code = requireTrimmedNonEmpty(input.code, 'code').toUpperCase();
+    const name = requireTrimmedNonEmpty(input.name, 'name');
     const duplicate = await this.locations.findByWarehouseAndCode(
       input.warehouseId,
       code,
@@ -45,13 +53,17 @@ export class CreateLocationUseCase {
       throw new LocationCodeTakenError();
     }
 
-    const parentLocationId = input.parentLocationId ?? null;
+    const parentLocationId =
+      normalizeOptionalParentId(input.parentLocationId) ?? null;
     if (parentLocationId) {
       const parent = await this.locations.findById(parentLocationId);
-      if (!parent || parent.warehouseId !== input.warehouseId) {
+      if (
+        !parent ||
+        parent.warehouseId !== input.warehouseId ||
+        !parent.isActive
+      ) {
         throw new LocationParentInvalidError();
       }
-      // New node cannot cycle yet (no self id), but parent must exist — OK
     }
 
     return this.locations.create({

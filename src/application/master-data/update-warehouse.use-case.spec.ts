@@ -13,6 +13,7 @@ describe('UpdateWarehouseUseCase', () => {
     create: jest.fn(),
     update: jest.fn(),
     countActiveLocations: jest.fn(),
+    deactivateIfNoActiveLocations: jest.fn(),
   };
   const useCase = new UpdateWarehouseUseCase(warehouses);
 
@@ -29,8 +30,10 @@ describe('UpdateWarehouseUseCase', () => {
   };
 
   it('blocks deactivate when active locations exist', async () => {
-    warehouses.findById.mockResolvedValue(warehouse);
-    warehouses.countActiveLocations.mockResolvedValue(2);
+    warehouses.deactivateIfNoActiveLocations.mockResolvedValue({
+      ok: false,
+      reason: 'has_active_locations',
+    });
 
     await expect(
       useCase.execute({ id: 'w1', isActive: false }),
@@ -38,15 +41,26 @@ describe('UpdateWarehouseUseCase', () => {
   });
 
   it('allows deactivate when no active locations', async () => {
-    warehouses.findById.mockResolvedValue(warehouse);
-    warehouses.countActiveLocations.mockResolvedValue(0);
-    warehouses.update.mockResolvedValue({ ...warehouse, isActive: false });
+    warehouses.deactivateIfNoActiveLocations.mockResolvedValue({
+      ok: true,
+      warehouse: { ...warehouse, isActive: false },
+    });
 
     const actual = await useCase.execute({ id: 'w1', isActive: false });
     expect(actual.isActive).toBe(false);
   });
 
-  it('throws when warehouse missing', async () => {
+  it('throws when warehouse missing on deactivate', async () => {
+    warehouses.deactivateIfNoActiveLocations.mockResolvedValue({
+      ok: false,
+      reason: 'not_found',
+    });
+    await expect(
+      useCase.execute({ id: 'missing', isActive: false }),
+    ).rejects.toBeInstanceOf(WarehouseNotFoundError);
+  });
+
+  it('throws when warehouse missing on normal update', async () => {
     warehouses.findById.mockResolvedValue(null);
     await expect(
       useCase.execute({ id: 'missing', name: 'X' }),

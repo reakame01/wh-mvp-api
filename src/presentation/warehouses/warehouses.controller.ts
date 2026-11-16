@@ -45,10 +45,11 @@ export class WarehousesController {
 
   @Get(':warehouseId/locations')
   @RequirePermissions('locations:read')
-  listLocationsForWarehouse(
+  async listLocationsForWarehouse(
     @Param('warehouseId') warehouseId: string,
     @Query() query: ListQueryDto,
   ) {
+    await this.getWarehouse.execute(warehouseId);
     return this.listLocations.execute({ ...query, warehouseId });
   }
 

@@ -91,7 +91,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"code\": \"ZONE-A\",\n  \"name\": \"Zone A\"\n}"
+          "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"code\": \"ZONE-A\",\n  \"name\": \"Zone A\",\n  \"parentLocationId\": \"\"\n}"
         },
         "url": "{{baseUrl}}/locations"
       }

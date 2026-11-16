@@ -5,7 +5,9 @@ import {
   LocationListQuery,
   LocationRepositoryPort,
   LocationUpdateInput,
+  ReparentLocationResult,
 } from '../../application/master-data/ports/location.repository.port';
+import { wouldCreateLocationCycle } from '../../domain/master-data/location-tree';
 import { Location } from '../../domain/master-data/location';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseSort } from './sort';
@@ -86,5 +88,52 @@ export class PrismaLocationRepository implements LocationRepositoryPort {
       select: { id: true, parentLocationId: true },
     });
     return new Map(rows.map((row) => [row.id, row.parentLocationId]));
+  }
+
+  async reparentWithLock(
+    id: string,
+    parentLocationId: string | null,
+    fields?: Omit<LocationUpdateInput, 'parentLocationId'>,
+  ): Promise<ReparentLocationResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.location.findUnique({ where: { id } });
+      if (!existing) {
+        return { ok: false, reason: 'not_found' };
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM locations
+        WHERE warehouse_id = ${existing.warehouseId}
+        FOR UPDATE
+      `;
+
+      const rows = await tx.location.findMany({
+        where: { warehouseId: existing.warehouseId },
+        select: { id: true, parentLocationId: true, isActive: true },
+      });
+      const parentMap = new Map(
+        rows.map((row) => [row.id, row.parentLocationId]),
+      );
+
+      if (parentLocationId !== null) {
+        const parent = rows.find((row) => row.id === parentLocationId);
+        if (!parent || !parent.isActive || parentLocationId === id) {
+          return { ok: false, reason: 'parent_invalid' };
+        }
+        if (wouldCreateLocationCycle(id, parentLocationId, parentMap)) {
+          return { ok: false, reason: 'cycle' };
+        }
+      }
+
+      const updated = await tx.location.update({
+        where: { id },
+        data: {
+          parentLocationId,
+          name: fields?.name,
+          isActive: fields?.isActive,
+        },
+      });
+      return { ok: true, location: updated };
+    });
   }
 }
