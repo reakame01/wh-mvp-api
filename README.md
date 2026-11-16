@@ -67,6 +67,20 @@ Access JWT ~15m; refresh ~7d (hash stored server-side, rotated on refresh).
 
 Authorization uses DB tables `permissions` + `role_permissions` (seeded). Guards use `@RequirePermissions('…')`; role→permission map is loaded into memory on boot.
 
+## Master data — Warehouses & Locations (Stage 2.3)
+
+| Method | Path | Permission | Notes |
+|--------|------|------------|-------|
+| GET | `/warehouses` | `warehouses:read` | paginated list (`page`, `pageSize`, `search`, `sort`, `isActive`) |
+| POST | `/warehouses` | `warehouses:write` | create |
+| GET | `/warehouses/:id` | `warehouses:read` | detail |
+| PATCH | `/warehouses/:id` | `warehouses:write` | update / soft deactivate (`isActive`) |
+| GET | `/warehouses/:warehouseId/locations` | `locations:read` | locations under warehouse |
+| GET/POST | `/locations` | `locations:read` / `write` | list (filter `warehouseId`) / create |
+| GET/PATCH | `/locations/:id` | `locations:read` / `write` | detail / update (tree parent, no cycles) |
+
+Location codes are unique per warehouse. Deactivating a warehouse is blocked while it still has active locations.
+
 ## Scripts
 
 | Script | Description |
