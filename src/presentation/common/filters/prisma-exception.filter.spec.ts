@@ -123,4 +123,68 @@ describe('PrismaExceptionFilter', () => {
       expect.objectContaining({ code: 'CATEGORY_NOT_FOUND' }),
     );
   });
+
+  it('maps P2002 barcode and supplier code', () => {
+    const { host, json } = hostWithResponse();
+    filter.catch(
+      new Prisma.PrismaClientKnownRequestError('Unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { modelName: 'Product', target: ['barcode'] },
+      }),
+      host,
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'PRODUCT_BARCODE_TAKEN' }),
+    );
+
+    filter.catch(
+      new Prisma.PrismaClientKnownRequestError('Unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { modelName: 'Supplier', target: ['code'] },
+      }),
+      host,
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'SUPPLIER_CODE_TAKEN' }),
+    );
+  });
+
+  it('maps warehouse FK P2003 and generic FK / unknown codes', () => {
+    const { host, status, json } = hostWithResponse();
+    filter.catch(
+      new Prisma.PrismaClientKnownRequestError('FK', {
+        code: 'P2003',
+        clientVersion: 'test',
+        meta: { fieldName: 'warehouseId' },
+      }),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'WAREHOUSE_NOT_FOUND' }),
+    );
+
+    filter.catch(
+      new Prisma.PrismaClientKnownRequestError('FK', {
+        code: 'P2003',
+        clientVersion: 'test',
+        meta: { field_name: 'some_other_fk' },
+      }),
+      host,
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'MASTER_DATA_INVALID_INPUT' }),
+    );
+
+    filter.catch(
+      new Prisma.PrismaClientKnownRequestError('Other', {
+        code: 'P9999',
+        clientVersion: 'test',
+      }),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+  });
 });
