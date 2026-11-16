@@ -53,17 +53,19 @@ Optional Redis + RabbitMQ (later tiers):
 docker compose --profile full up -d
 ```
 
-## Auth (Stage 2.1)
+## Auth & RBAC (Stage 2)
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
 | POST | `/auth/login` | public | `{ email, password }` → access + refresh |
 | POST | `/auth/refresh` | public | rotate refresh token |
 | POST | `/auth/logout` | Bearer | revoke refresh |
-| GET | `/auth/me` | Bearer | current user |
-| POST | `/users` | Admin | create user |
+| GET | `/auth/me` | Bearer | profile + permission codes for role |
+| POST | `/users` | `users:write` | create user (Admin in seed matrix) |
 
 Access JWT ~15m; refresh ~7d (hash stored server-side, rotated on refresh).
+
+Authorization uses DB tables `permissions` + `role_permissions` (seeded). Guards use `@RequirePermissions('…')`; role→permission map is loaded into memory on boot.
 
 ## Scripts
 
