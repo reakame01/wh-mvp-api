@@ -1,0 +1,206 @@
+{
+  "info": {
+    "_postman_id": "ed915980-6124-403f-9a02-065828b24473",
+    "name": "Warehouse MVP — Warehouses & Locations",
+    "description": "Slice 2.3 smoke: login → warehouse → locations tree → cycle + deactivate guards.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
+  "item": [
+    {
+      "name": "01 Login as Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.environment.set('accessToken', body.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "02 Create warehouse",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('warehouseCode', `BKK-${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201 or 200', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "const body = pm.response.json();",
+              "pm.environment.set('warehouseId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{warehouseCode}}\",\n  \"name\": \"Bangkok DC\",\n  \"address\": \"Demo Road\"\n}"
+        },
+        "url": "{{baseUrl}}/warehouses"
+      }
+    },
+    {
+      "name": "03 Create root location",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "pm.environment.set('rootLocationId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"code\": \"ZONE-A\",\n  \"name\": \"Zone A\",\n  \"parentLocationId\": \"\"\n}"
+        },
+        "url": "{{baseUrl}}/locations"
+      }
+    },
+    {
+      "name": "04 Create child location",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "const body = pm.response.json();",
+              "pm.environment.set('childLocationId', body.id);",
+              "pm.test('parent set', () => pm.expect(body.parentLocationId).to.eql(pm.environment.get('rootLocationId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"code\": \"BIN-A01\",\n  \"name\": \"Bin A01\",\n  \"parentLocationId\": \"{{rootLocationId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/locations"
+      }
+    },
+    {
+      "name": "05 List warehouse locations",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has meta', () => pm.expect(body.meta.total).to.be.at.least(2));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/warehouses/{{warehouseId}}/locations?page=1&pageSize=20"
+      }
+    },
+    {
+      "name": "06 Reject location cycle",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 400', () => pm.response.to.have.status(400));",
+              "pm.test('LOCATION_CYCLE', () => pm.expect(pm.response.json().code).to.eql('LOCATION_CYCLE'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parentLocationId\": \"{{childLocationId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/locations/{{rootLocationId}}"
+      }
+    },
+    {
+      "name": "07 Block warehouse deactivate with active locations",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 409', () => pm.response.to.have.status(409));",
+              "pm.test('WAREHOUSE_HAS_ACTIVE_LOCATIONS', () => pm.expect(pm.response.json().code).to.eql('WAREHOUSE_HAS_ACTIVE_LOCATIONS'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isActive\": false\n}"
+        },
+        "url": "{{baseUrl}}/warehouses/{{warehouseId}}"
+      }
+    }
+  ]
+}
