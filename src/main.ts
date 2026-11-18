@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { AuthExceptionFilter } from './presentation/common/filters/auth-exception.filter';
 import { MasterDataExceptionFilter } from './presentation/common/filters/master-data-exception.filter';
 import { PrismaExceptionFilter } from './presentation/common/filters/prisma-exception.filter';
+import { StockExceptionFilter } from './presentation/common/filters/stock-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -18,6 +19,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(
     new AuthExceptionFilter(),
     new MasterDataExceptionFilter(),
+    new StockExceptionFilter(),
     new PrismaExceptionFilter(),
   );
   const config = app.get(ConfigService);

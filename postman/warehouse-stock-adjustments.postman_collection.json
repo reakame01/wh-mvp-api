@@ -1,0 +1,265 @@
+{
+  "info": {
+    "_postman_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "name": "Warehouse MVP — Stock Adjustments",
+    "description": "Slice 3.2 smoke: login → ensure product/location → adjust stock → idempotent replay → insufficient reject.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
+  "item": [
+    {
+      "name": "01 Login as Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.environment.set('accessToken', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "02 Ensure category",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.environment.set('categoryCode', `STK-CAT-${Date.now()}`);"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "pm.environment.set('categoryId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{categoryCode}}\",\n  \"name\": \"Stock Test Category\"\n}"
+        },
+        "url": "{{baseUrl}}/categories"
+      }
+    },
+    {
+      "name": "03 Ensure product",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.environment.set('productSku', `STK-${Date.now()}`);"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "pm.environment.set('productId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Stock Widget\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"unit\": \"EA\",\n  \"reorderPoint\": \"1\"\n}"
+        },
+        "url": "{{baseUrl}}/products"
+      }
+    },
+    {
+      "name": "04 Ensure warehouse",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.environment.set('warehouseCode', `STK-WH-${Date.now()}`);"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "pm.environment.set('warehouseId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{warehouseCode}}\",\n  \"name\": \"Stock Test WH\"\n}"
+        },
+        "url": "{{baseUrl}}/warehouses"
+      }
+    },
+    {
+      "name": "05 Ensure location",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "pm.environment.set('locationId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"code\": \"BIN-1\",\n  \"name\": \"Bin 1\",\n  \"parentLocationId\": \"\"\n}"
+        },
+        "url": "{{baseUrl}}/locations"
+      }
+    },
+    {
+      "name": "06 Adjust +10 FOUND",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.environment.set('idemKey', `adj-${Date.now()}`);"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.environment.set('movementId', body.id);",
+              "pm.test('delta', () => pm.expect(body.quantityDelta).to.eql('10.0000'));",
+              "pm.test('reason', () => pm.expect(body.reasonCode).to.eql('FOUND'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "{{idemKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"locationId\": \"{{locationId}}\",\n  \"quantityDelta\": \"10\",\n  \"reasonCode\": \"FOUND\",\n  \"note\": \"seed stock\"\n}"
+        },
+        "url": "{{baseUrl}}/stock/adjustments"
+      }
+    },
+    {
+      "name": "07 Replay same Idempotency-Key",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('same movement', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('movementId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "{{idemKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"locationId\": \"{{locationId}}\",\n  \"quantityDelta\": \"10\",\n  \"reasonCode\": \"FOUND\",\n  \"note\": \"seed stock\"\n}"
+        },
+        "url": "{{baseUrl}}/stock/adjustments"
+      }
+    },
+    {
+      "name": "08 Reject oversell -20",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.environment.set('idemKey2', `adj-neg-${Date.now()}`);"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 409', () => pm.response.to.have.status(409));",
+              "pm.test('STOCK_INSUFFICIENT', () => pm.expect(pm.response.json().code).to.eql('STOCK_INSUFFICIENT'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "{{idemKey2}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"locationId\": \"{{locationId}}\",\n  \"quantityDelta\": \"-20\",\n  \"reasonCode\": \"LOST\"\n}"
+        },
+        "url": "{{baseUrl}}/stock/adjustments"
+      }
+    }
+  ]
+}

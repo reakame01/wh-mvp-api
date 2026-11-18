@@ -10,6 +10,7 @@ Files for manual runs in Postman Desktop and for CI (Jenkins Postman CLI).
 | Collection **Warehouse MVP — Auth & RBAC** | `5006774-8ff6c4f4-df03-4401-b7ce-e7012fc6d2bd` |
 | Collection **Warehouse MVP — Warehouses & Locations** | `5006774-ed915980-6124-403f-9a02-065828b24473` |
 | Collection **Warehouse MVP — Catalog** | import `warehouse-catalog.postman_collection.json` (Cloud sync optional) |
+| Collection **Warehouse MVP — Stock Adjustments** | import `warehouse-stock-adjustments.postman_collection.json` |
 | Environment **Local (localhost:3000)** | `5006774-8bbc867c-e099-4fd4-8bd7-a68c24db19a5` |
 | Open in app | [Warehouse MVP workspace](https://web.postman.co/workspace/3bdd4302-3f1f-4865-8bb5-d0999eff8c57) |
 
@@ -24,6 +25,7 @@ Files for manual runs in Postman Desktop and for CI (Jenkins Postman CLI).
 | `warehouse-auth.postman_collection.json` | Auth/RBAC smoke (repo mirror) |
 | `warehouse-locations.postman_collection.json` | Warehouses/locations smoke (repo mirror) |
 | `warehouse-catalog.postman_collection.json` | Categories/suppliers/products smoke (repo mirror) |
+| `warehouse-stock-adjustments.postman_collection.json` | Stock adjustment + idempotency smoke (repo mirror) |
 | `local.postman_environment.json` | Local env (`baseUrl`, admin creds) |
 | `Jenkinsfile` | Sample Jenkins pipeline using Postman CLI |
 
