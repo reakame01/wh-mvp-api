@@ -101,10 +101,13 @@ Schema: append-only `stock_movements` + `stock_balances` projection (ADR 0003).
 | Method | Path | Permission | Notes |
 |--------|------|------------|-------|
 | POST | `/stock/adjustments` | `stock:write` | requires `Idempotency-Key`; body `quantityDelta` as decimal string + `reasonCode` (+ `note` if `OTHER`) |
+| GET | `/stock/balances` | `stock:read` | paginated; filters `productId` / `locationId` / `warehouseId` / `lowStock` |
+| GET | `/stock/balances/:productId/:locationId` | `stock:read` | `404 STOCK_BALANCE_NOT_FOUND` if no row |
+| GET | `/stock/movements` | `stock:read` | paginated ledger; filters include `type`, `createdFrom` / `createdTo` |
 
 - **201** first write; **200** idempotent replay (same key, no second delta)
+- Response `available` = `onHand - reserved` (derived; Stage 3 `reserved` is always `0`)
 - DB CHECKs + immutability trigger on movements
-- Read balances/movements APIs: slice 3.3
 
 ## Scripts
 
