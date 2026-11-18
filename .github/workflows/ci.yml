@@ -55,3 +55,6 @@ jobs:
 
       - name: Apply migrations
         run: npx prisma migrate deploy
+
+      - name: Integration tests (stock concurrency)
+        run: npm run test:integration
