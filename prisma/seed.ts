@@ -19,6 +19,8 @@ const PERMISSION_DESCRIPTIONS: Record<(typeof PERMISSION_CODES)[number], string>
     'warehouses:write': 'Create and update warehouses',
     'locations:read': 'Read locations',
     'locations:write': 'Create and update locations',
+    'stock:read': 'Read stock balances and movements',
+    'stock:write': 'Record stock adjustments',
   };
 
 function toPrismaRole(role: string): Role {

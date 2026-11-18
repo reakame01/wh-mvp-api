@@ -94,6 +94,14 @@ Location codes are unique per warehouse. Deactivating a warehouse is blocked whi
 
 SKU and codes are trimmed/uppercased. Product create/activate requires an **active** category.
 
+## Stock ledger (Stage 3.1 — schema)
+
+Schema + domain for append-only `stock_movements` and `stock_balances` projection (ADR 0003 in workspace docs). Adjustment APIs land in slice 3.2.
+
+- DB CHECKs: never-negative on-hand/reserved; `reserved <= on_hand`; movement `quantity_delta <> 0`
+- Append-only: trigger rejects UPDATE/DELETE on `stock_movements`
+- Permissions seeded: `stock:read` / `stock:write`
+
 ## Scripts
 
 | Script | Description |
