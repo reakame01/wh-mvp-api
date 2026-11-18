@@ -2,6 +2,8 @@ import { InvalidStockInputError } from './stock.errors';
 
 const FIXED_SCALE = 4;
 const SCALE_FACTOR = 10n ** BigInt(FIXED_SCALE);
+/** Matches PostgreSQL `DECIMAL(18,4)`: 18 digits total, 4 after the decimal. */
+const MAX_ABS_SCALED = 10n ** 18n;
 
 /** Parse a non-negative or signed decimal string into a fixed-4 scaled bigint. */
 export function parseDecimalStringToScaled(raw: string): bigint {
@@ -19,6 +21,11 @@ export function parseDecimalStringToScaled(raw: string): bigint {
   }
   const fracPadded = fracPart.padEnd(FIXED_SCALE, '0');
   const scaled = BigInt(wholePart) * SCALE_FACTOR + BigInt(fracPadded || '0');
+  if (scaled >= MAX_ABS_SCALED) {
+    throw new InvalidStockInputError(
+      'quantity exceeds Decimal(18,4) precision',
+    );
+  }
   return negative ? -scaled : scaled;
 }
 
