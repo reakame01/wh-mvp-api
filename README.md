@@ -116,7 +116,8 @@ Schema: append-only `stock_movements` + `stock_balances` projection (ADR 0003).
 | `npm run start:dev` | Watch mode |
 | `npm run build` | Compile (`dist/main.js`) |
 | `npm test` | Unit tests |
-| `npm run test:cov` | Coverage (domain/application + filters/guards; HTTP via Postman; Prisma repos deferred to Stage 3 integration) |
+| `npm run test:cov` | Coverage (domain/application + filters/guards; HTTP via Postman) |
+| `npm run test:integration` | Real Postgres: parallel stock adjustments never go negative |
 | `npm run lint` | ESLint |
 | `npm run prisma:deploy` | Apply migrations |
 | `npm run prisma:seed` | Seed admin user |
