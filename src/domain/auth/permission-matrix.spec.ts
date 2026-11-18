@@ -26,6 +26,19 @@ describe('permission matrix (seed rules)', () => {
     ]);
   });
 
+  it('grants stock:read to all roles and stock:write to Manager+Admin', () => {
+    expect(rolesForPermission('stock:read')).toEqual([
+      Role.Viewer,
+      Role.Staff,
+      Role.Manager,
+      Role.Admin,
+    ]);
+    expect(rolesForPermission('stock:write')).toEqual([
+      Role.Manager,
+      Role.Admin,
+    ]);
+  });
+
   it('does not give Viewer any write permission', () => {
     const viewerWrites = buildRolePermissionPairs().filter(
       (p) => p.role === Role.Viewer && p.code.endsWith(':write'),

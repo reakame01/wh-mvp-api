@@ -11,6 +11,8 @@ export const PERMISSION_CODES = [
   'warehouses:write',
   'locations:read',
   'locations:write',
+  'stock:read',
+  'stock:write',
 ] as const;
 
 export type PermissionCode = (typeof PERMISSION_CODES)[number];
