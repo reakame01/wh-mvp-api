@@ -20,6 +20,14 @@ import type { StockMovement } from '../../domain/stock/stock-movement';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseBalanceSort, parseMovementSort } from './stock-sort';
 
+/** Thrown inside a txn so Prisma rolls back (including a just-inserted zero balance). */
+class InsufficientStockTxnError extends Error {
+  constructor() {
+    super('STOCK_INSUFFICIENT');
+    this.name = 'InsufficientStockTxnError';
+  }
+}
+
 function mapMovement(row: PrismaStockMovement): StockMovement {
   return {
     id: row.id,
@@ -112,14 +120,16 @@ export class PrismaStockLedgerRepository implements StockLedgerRepositoryPort {
         `;
         const balance = locked[0];
         if (!balance) {
-          return { ok: false, reason: 'insufficient' };
+          // Rollback any INSERT … ON CONFLICT balance row from this txn.
+          throw new InsufficientStockTxnError();
         }
 
         const nextOnHandScaled =
           parseDecimalStringToScaled(balance.on_hand.toFixed(4)) +
           parseDecimalStringToScaled(input.quantityDelta);
         if (nextOnHandScaled < 0n) {
-          return { ok: false, reason: 'insufficient' };
+          // Rollback any INSERT … ON CONFLICT balance row from this txn.
+          throw new InsufficientStockTxnError();
         }
         const nextOnHand = formatScaledToDecimalString(nextOnHandScaled);
 
@@ -151,6 +161,9 @@ export class PrismaStockLedgerRepository implements StockLedgerRepositoryPort {
         return { ok: true, replayed: false, movement: mapMovement(created) };
       });
     } catch (error) {
+      if (error instanceof InsufficientStockTxnError) {
+        return { ok: false, reason: 'insufficient' };
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'

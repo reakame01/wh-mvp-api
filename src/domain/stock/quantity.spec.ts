@@ -22,6 +22,16 @@ describe('quantity helpers', () => {
     );
   });
 
+  it('rejects values that exceed Decimal(18,4)', () => {
+    expect(() => parseDecimalStringToScaled('100000000000000')).toThrow(
+      InvalidStockInputError,
+    );
+    expect(() => parseDecimalStringToScaled('-99999999999999.9999')).not.toThrow();
+    expect(() =>
+      parseDecimalStringToScaled('99999999999999.9999'),
+    ).not.toThrow();
+  });
+
   it('computes available = onHand - reserved', () => {
     expect(availableQuantity('10.0000', '2.5000')).toBe('7.5000');
     expect(availableQuantity('1.0000', '0.0000')).toBe('1.0000');
