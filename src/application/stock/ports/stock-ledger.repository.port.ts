@@ -1,5 +1,9 @@
 import type { AdjustmentReasonCode } from '../../../domain/stock/adjustment-reason';
-import type { StockMovement } from '../../../domain/stock/stock-movement';
+import type { StockBalance } from '../../../domain/stock/stock-balance';
+import type {
+  StockMovement,
+  StockMovementType,
+} from '../../../domain/stock/stock-movement';
 
 export const STOCK_LEDGER_REPOSITORY = Symbol('STOCK_LEDGER_REPOSITORY');
 
@@ -25,6 +29,28 @@ export type RecordAdjustmentPersistResult =
         | 'insufficient';
     };
 
+export type StockBalanceListQuery = {
+  page: number;
+  pageSize: number;
+  productId?: string;
+  locationId?: string;
+  warehouseId?: string;
+  lowStock?: boolean;
+  sort?: string;
+};
+
+export type StockMovementListQuery = {
+  page: number;
+  pageSize: number;
+  productId?: string;
+  locationId?: string;
+  warehouseId?: string;
+  type?: StockMovementType;
+  createdFrom?: Date;
+  createdTo?: Date;
+  sort?: string;
+};
+
 export interface StockLedgerRepositoryPort {
   findMovementByIdempotency(
     createdByUserId: string,
@@ -38,4 +64,17 @@ export interface StockLedgerRepositoryPort {
   persistAdjustment(
     input: RecordAdjustmentPersistInput,
   ): Promise<RecordAdjustmentPersistResult>;
+
+  findBalance(
+    productId: string,
+    locationId: string,
+  ): Promise<StockBalance | null>;
+
+  listBalances(
+    query: StockBalanceListQuery,
+  ): Promise<{ items: StockBalance[]; total: number }>;
+
+  listMovements(
+    query: StockMovementListQuery,
+  ): Promise<{ items: StockMovement[]; total: number }>;
 }

@@ -28,6 +28,9 @@ describe('RecordAdjustmentUseCase', () => {
   const ledger: jest.Mocked<StockLedgerRepositoryPort> = {
     findMovementByIdempotency: jest.fn(),
     persistAdjustment: jest.fn(),
+    findBalance: jest.fn(),
+    listBalances: jest.fn(),
+    listMovements: jest.fn(),
   };
   const useCase = new RecordAdjustmentUseCase(ledger);
 
